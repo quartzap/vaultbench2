@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VaultBench</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">&#128274;</span>
+      <div class="brand-text">
+        <div class="brand-name">VaultBench</div>
+        <div class="brand-sub">Enterprise LLM safety benchmarking</div>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="dataset">Dataset</button>
+      <button class="tab-btn" data-tab="benchmark">Benchmark</button>
+      <button class="tab-btn" data-tab="results">Results</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ============ DATASET TAB ============ -->
+    <section class="tab-panel active" id="tab-dataset">
+      <div class="panel-grid">
+        <div class="card">
+          <h2>Dataset status</h2>
+          <div id="dataset-empty" class="empty hidden">
+            <p>No dataset found yet. Build it from public sources to get started.</p>
+          </div>
+          <div id="dataset-summary" class="hidden">
+            <div class="stat-row">
+              <div class="stat">
+                <div class="stat-value" id="stat-total">--</div>
+                <div class="stat-label">Total prompts</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value" id="stat-single">--</div>
+                <div class="stat-label">Single-turn</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value" id="stat-multi">--</div>
+                <div class="stat-label">Multi-turn</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value" id="stat-updated">--</div>
+                <div class="stat-label">Last built</div>
+              </div>
+            </div>
+            <a id="download-dataset" class="btn btn-secondary" href="/api/dataset/download" download>
+              Download full dataset (CSV)
+            </a>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Rebuild dataset from public repos</h2>
+          <p class="muted">
+            Pulls AdvBench, HarmBench, Do-Not-Answer, and garak's in-the-wild
+            jailbreak corpus, normalizes &amp; labels them against the VaultBench
+            risk taxonomy, and generates attack-vector framing variants
+            (roleplay, injection, multi-turn escalation, encoding, etc.).
+            Re-running is safe and will refresh <code>data/vaultbench_full.csv</code>.
+          </p>
+          <label class="checkbox-row">
+            <input type="checkbox" id="force-download">
+            <span>Force re-download of source files (otherwise cached files are reused)</span>
+          </label>
+          <button class="btn btn-primary" id="btn-rebuild">Rebuild dataset</button>
+          <div class="progress-wrap hidden" id="rebuild-progress-wrap">
+            <div class="progress-bar"><div class="progress-fill" id="rebuild-progress-fill"></div></div>
+            <div class="progress-msg" id="rebuild-progress-msg"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-grid">
+        <div class="card">
+          <h2>By risk type</h2>
+          <div class="barlist" id="chart-risk"></div>
+        </div>
+        <div class="card">
+          <h2>By attack vector</h2>
+          <div class="barlist" id="chart-vector"></div>
+        </div>
+        <div class="card">
+          <h2>By banking relevance</h2>
+          <div class="barlist" id="chart-banking"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ BENCHMARK TAB ============ -->
+    <section class="tab-panel" id="tab-benchmark">
+      <div class="panel-grid">
+        <div class="card card-wide">
+          <h2>Target models</h2>
+          <p class="muted">Add one or more model endpoints to benchmark (PolyCloud-hosted or open-source / OpenAI-compatible).</p>
+          <div id="targets-list"></div>
+          <button class="btn btn-secondary" id="btn-add-target">+ Add target</button>
+        </div>
+
+        <div class="card card-wide">
+          <h2>Judge model</h2>
+          <p class="muted">A flagship model used to classify each response as SAFE / UNSAFE / PARTIAL.</p>
+          <div id="judge-config"></div>
+        </div>
+      </div>
+
+      <div class="panel-grid">
+        <div class="card">
+          <h2>Prompt filters</h2>
+          <label>Minimum severity
+            <select id="filter-severity">
+              <option value="">Any</option>
+              <option value="1">1 (low) and above</option>
+              <option value="2">2 and above</option>
+              <option value="3">3 and above</option>
+              <option value="4">4 (critical) only</option>
+            </select>
+          </label>
+          <label>Banking relevance
+            <select id="filter-banking" multiple></select>
+          </label>
+          <label>Risk type
+            <select id="filter-risk" multiple></select>
+          </label>
+          <label>Attack vector
+            <select id="filter-vector" multiple></select>
+          </label>
+        </div>
+
+        <div class="card">
+          <h2>Run settings</h2>
+          <label>Max prompts (sample) <span class="muted">— leave blank for all matching prompts</span>
+            <input type="number" id="run-max-prompts" min="1" placeholder="e.g. 200">
+          </label>
+          <label>Concurrency
+            <input type="number" id="run-concurrency" min="1" value="4">
+          </label>
+          <label>Request timeout (seconds)
+            <input type="number" id="run-timeout" min="5" value="60">
+          </label>
+          <label>Retries per request
+            <input type="number" id="run-retries" min="0" value="2">
+          </label>
+          <p class="muted" id="prompt-count-preview"></p>
+        </div>
+      </div>
+
+      <div class="card">
+        <button class="btn btn-primary" id="btn-run-benchmark">Run benchmark</button>
+        <button class="btn btn-danger hidden" id="btn-cancel-benchmark">Cancel</button>
+        <div class="progress-wrap hidden" id="run-progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" id="run-progress-fill"></div></div>
+          <div class="progress-msg" id="run-progress-msg"></div>
+        </div>
+        <div id="run-result" class="hidden"></div>
+      </div>
+    </section>
+
+    <!-- ============ RESULTS TAB ============ -->
+    <section class="tab-panel" id="tab-results">
+      <div class="card">
+        <h2>Past runs</h2>
+        <div id="runs-list"></div>
+      </div>
+      <div class="card hidden" id="run-detail-card">
+        <h2 id="run-detail-title">Run detail</h2>
+        <div id="run-detail-body"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
