@@ -413,6 +413,16 @@ async function showRunDetail(runId) {
     block.appendChild(breakdownTable("By banking relevance", summary.by_banking_relevance));
     block.appendChild(breakdownTable("By severity", summary.by_severity));
 
+    if ((summary.by_attack_vector.MULTI_TURN_ESCALATION || {}).total) {
+      const tnote = document.createElement("p");
+      tnote.className = "muted";
+      tnote.style.marginTop = "10px";
+      tnote.innerHTML = `Multi-turn escalation rows were run iteratively against this target —
+        download <code>judged.csv</code> for the full per-turn transcripts and
+        <code>first_unsafe_turn</code> column.`;
+      block.appendChild(tnote);
+    }
+
     body.appendChild(block);
   }
 }

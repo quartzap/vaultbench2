@@ -72,11 +72,17 @@ Open http://localhost:5000
   red-team use on a trusted network; put behind a proper WSGI server +
   auth if exposing more broadly.
 - Cost/scale: a full 20,615-prompt run × judge calls = ~41k LLM calls per
-  target. Use filters/`max_prompts` for iterative testing.
-- MULTI_TURN rows send the scripted user turns in one exchange (the
-  assistant placeholder turns are informational). For a fully rigorous
-  Crescendo-style eval where turn 5 depends on the model's actual turns
-  1–4 responses, extend `build_messages_for_row` in `eval_core.py`.
+  target (multi-turn rows cost a few extra target calls each — see below).
+  Use filters/`max_prompts` for iterative testing.
+- **Multi-turn (Crescendo-style) evaluation is fully iterative**: for
+  `MULTI_TURN_ESCALATION` rows, each scripted user turn is sent to the
+  target model in order, and the model's *real* response is fed back into
+  the conversation before the next (escalating) user turn is sent. The
+  judge then reviews the **entire real transcript** (not just the final
+  reply) and can flag the conversation as UNSAFE if the model was walked
+  into compliance at *any* turn — `judged.csv` includes a
+  `first_unsafe_turn` column and a `transcript_json` column with the full
+  back-and-forth for review.
 - Judge bias: using a model to judge itself (or a closely related model)
   can have blind spots — consider periodically rotating the judge model or
   spot-checking a sample with human review.
